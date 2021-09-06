@@ -7,13 +7,14 @@ Hello and welcome to the NGSprint Data Visualization hackathon!
 You will find materials and instructions for the Data Visualization hackathon during NGSprint event.
 
 When: 8 - 15.09.2021  
-Where: Online  
+Where: Discord & Zoom
+
 
 More info about the event can be found on [the website](https://ngschool.eu/ngsprint/). 
 
 ## Aim
 
-During this hackathon we will explore what makes a good figure and how to avoid common pitfalls. Y
+During this hackathon we will explore what makes a good figure and how to avoid common pitfalls. We will discuss which rules are important and which we can treat as suggestions. 
 
 ## Preparation
 
@@ -25,7 +26,13 @@ The tutorial part of the hackathon will be run in R, therefore you will need:
 
 If you run into issues installing R and RStudio you can try [RStudio Cloud](https://rstudio.cloud/projects) - you will need to set up an account and install the packages using the code in the `prep_help.R` file. 
 
+### Previous knowledge
 
+If you don't feel confident using R I would highly recommend going through some of the [NGSeminars](https://ngschool.eu/ngseminars2020/), especially:
+
+* **Introduction to R** [[YouTube recording](https://youtu.be/zrqIhS2zUFk), [GitHub repository](https://github.com/NGSchoolEU/NGSeminaR)] by [Maja Kuzman](https://twitter.com/maja_kuzman)  
+* **R for Data Science (with tidyverse and ggplot2)** [[YouTube recording](https://youtu.be/G8cGmdrCsUs), [GitHub repository](https://github.com/sienkie/R_for_data_science)] by [Karolina Sienkiewicz](https://twitter.com/sienkieee)  
+* **R - functions and fundamentals** [[YouTube recording](hhttps://youtu.be/Rh9K5tHOm1c), [GitHub repository](https://github.com/anamariaelek/NGSeminar)] by [Anamaria Elek](https://twitter.com/anamariaelek)  
 
 ## Important reading
 
