@@ -1,0 +1,201 @@
+---
+title: "Create plots for presentation"
+output:
+  html_document:
+    df_print: paged
+---
+
+
+```{r, warning=FALSE, message=FALSE}
+library(tidyverse)
+library(patchwork)
+# for bubbles
+library(packcircles)
+```
+
+# Why visualise data?
+
+```{r}
+set.seed(0)
+t <- sort(runif(20, 0, 2 * pi))
+x <- 2 * cos(t)
+y <- 2 * sin(t)
+df <- data.frame(x, y)
+```
+
+```{r}
+df %>%
+  write_tsv("circle_data.tsv")
+
+df
+```
+
+```{r}
+plt_circle <-
+  ggplot(df, aes(x, y)) +
+  geom_point() +
+  coord_equal() +
+  theme_linedraw()
+
+plt_circle
+```
+
+```{r}
+ggsave(plt_circle, filename = "../images/circle.png", width = 4, height = 4)
+```
+
+```{r}
+plt_bad_circle <-
+  df %>% 
+  mutate(index = 1:n()) %>%
+  gather(variable, value, -index) %>%
+  ggplot(., aes(index, value, color = variable)) +
+  geom_line() +
+  theme_linedraw() +
+  theme(legend.position = "bottom") +
+  labs(color = "", x = "Order", y = "Value") +
+  scale_color_manual(values = c("#ffcd00", "#000000"))
+
+plt_bad_circle
+```
+```{r}
+ggsave(plt_bad_circle, filename = "../images/bad_circle.png", width = 4, height = 4)
+```
+
+```{r}
+plt_circle + plt_bad_circle + plot_layout(widths = c(1, 1))
+```
+```{r}
+ggsave(plt_circle + plt_bad_circle + plot_layout(widths = c(1, 1)), 
+       filename = "../images/bad_circle_circle.png", width = 8, height = 4)
+```
+
+
+# Pie chart
+
+```{r}
+plt_pie <-
+  mtcars %>% 
+  mutate(gear = as.factor(gear)) %>%
+  group_by(gear) %>% 
+  count() %>%
+  ggplot(aes(x = "", y = n, fill = gear)) +
+  geom_col() +
+  coord_polar(theta = "y") +
+  theme_void() +
+  theme(legend.position = "none") +
+  scale_fill_manual(values = c("#ffcd00", "#cccccc", "#000000"))
+plt_pie
+```
+
+
+```{r}
+ggsave(plt_pie, width = 4, height = 4, filename = "../images/pie.png")
+```
+
+# Donut 
+
+```{r}
+plt_donut <- 
+  tibble(category = c("A", "B", "C", "D"), 
+       count = c(10, 25, 40, 60)) %>%
+  mutate(fraction = count / sum(count),
+         ymax = cumsum(fraction),
+         ymin = lag(ymax),
+         ymin = ifelse(is.na(ymin), 0, ymin)) %>%
+  ggplot(aes(ymax = ymax, ymin = ymin, xmax = 4, xmin = 3, fill = category)) +
+  geom_rect() +
+  coord_polar(theta = "y") + 
+  xlim(c(2, 4)) +
+  theme_void() +
+  theme(legend.position = "none") +
+  scale_fill_manual(values = c("A" = "#000000", "B" = "#cccccc", 
+                               "C" = "#ffcd00", "D" = "#cccccc"))
+plt_donut
+```
+
+```{r}
+ggsave(plt_donut, width = 4, height = 4, filename = "../images/donut.png")
+```
+
+# Bar plot
+
+```{r}
+plt_bar <- 
+  mtcars %>% 
+  mutate(gear = as.factor(gear)) %>%
+  group_by(gear) %>% 
+  count() %>%
+  ggplot(aes(x = gear, y = n, fill = gear)) +
+  geom_bar(stat = "identity") +
+  theme_void() +
+  theme(legend.position = "none") +
+  scale_fill_manual(values = c("#ffcd00", "#cccccc", "#000000"))
+
+plt_bar
+```
+
+
+```{r}
+ggsave(plt_bar, width = 4, height = 4, filename = "../images/bar.png")
+```
+
+
+# Bubbles
+
+Source:
+```{r}
+# Create data
+data_df <- 
+  tibble(category = c("A", "B", "C", "D"), 
+         count = c(10, 25, 40, 60))
+
+# Generate the layout. This function return a dataframe with one line per bubble. 
+# It gives its center (x and y) and its radius, proportional of the value
+packing <- circleProgressiveLayout(data_df$count, sizetype='area')
+
+# We can add these packing information to the initial data frame
+data_df <- cbind(data_df, packing)
+
+# Check that radius is proportional to value. We don't want a linear 
+# relationship, since it is the AREA that must be proportionnal to the value
+# plot(data$radius, data$value)
+
+# The next step is to go from one center + a radius to the coordinates of a circle that
+# is drawn by a multitude of straight lines.
+dat.gg <- circleLayoutVertices(packing, npoints = 50)
+
+# Make the plot
+plt_bubbles <- 
+  dat.gg %>%
+  ggplot(aes(x, y, group = id, fill = as.factor(id))) + 
+  # Make the bubbles
+  geom_polygon(color = "black") +
+  scale_size_continuous(range = c(1, 4)) +
+  theme_void() + 
+  theme(legend.position="none") +
+  coord_equal() +
+  scale_fill_manual(values = c("1" = "#ffcd00", "2" = "#cccccc", 
+                               "3" = "#000000", "4" = "#cccccc"))
+plt_bubbles
+```
+
+
+```{r}
+ggsave(plt_bubbles, width = 4, height = 4, filename = "../images/bubbles.png")
+```
+
+# Joint 
+
+```{r}
+(plt_pie + plt_donut) / (plt_bubbles + plt_bar) + 
+          plot_annotation(tag_levels = "1")
+```
+
+
+```{r}
+ggsave((plt_pie + plt_donut) / (plt_bubbles + plt_bar) + 
+          plot_annotation(tag_levels = "1"), 
+       width = 8, height = 4, filename = "../images/joint.png")
+```
+

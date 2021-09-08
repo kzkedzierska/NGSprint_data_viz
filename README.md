@@ -34,10 +34,10 @@ If you don't feel confident using R I would highly recommend going through some 
 * **R for Data Science (with tidyverse and ggplot2)** [[YouTube recording](https://youtu.be/G8cGmdrCsUs), [GitHub repository](https://github.com/sienkie/R_for_data_science)] by [Karolina Sienkiewicz](https://twitter.com/sienkieee)  
 * **R - functions and fundamentals** [[YouTube recording](hhttps://youtu.be/Rh9K5tHOm1c), [GitHub repository](https://github.com/anamariaelek/NGSeminar)] by [Anamaria Elek](https://twitter.com/anamariaelek)  
 
-## Important reading
+## Materials
 
 * [Fundamentals of Data Visualization](https://clauswilke.com/dataviz/) by [Claus O. Wilke](https://twitter.com/ClausWilke)
-* [Data Visualization: A Practical Introduction.]() by [Kieran Healy](https://twitter.com/kjhealy)
+* [Data Visualization: A Practical Introduction.](https://socviz.co/index.html) by [Kieran Healy](https://twitter.com/kjhealy)
 * [SDS 375/395 Data Visualization in R](https://wilkelab.org/SDS375/syllabus.html) @ University of Texas at Austin by [Claus O. Wilke](https://twitter.com/ClausWilke) and Anastasiya Kulikova.
 * [Data Visualization SOCIOL 880](http://socviz880.co/) @ Duke University by [Kieran Healy](https://twitter.com/kjhealy)
 
@@ -45,10 +45,13 @@ If you don't feel confident using R I would highly recommend going through some 
 
 * [COVID-19 tracker @ Financial Times](https://www.ft.com/content/a2901ce8-5eb7-4633-b89c-cbdf5b386938) by [John Burn-Murdoch](https://twitter.com/jburnmurdoch)
 
-![](images/jbm_ft_covid.jpeg){width=50%}
+This was a groundbreaking visualisation that allowed to compare countries 
+
+![](images/jbm_ft_covid.jpeg)
 
 [John Burn-Murdoch keynote @ RSTUDIO::GLOBAL 2021](https://www.rstudio.com/resources/rstudioglobal-2021/reporting-on-and-visualising-the-pandemic/)
 
 * [1854 Broad Street cholera outbreak map](https://en.wikipedia.org/wiki/1854_Broad_Street_cholera_outbreak) by John Snow
 
-![](images/Snow-cholera-map-1.jpg){width=30%}
+<img src="images/Snow-cholera-map-1.jpg" width="341.3" height="320.3">
+
