@@ -108,7 +108,7 @@ To read more about the pipe, check [Pipe documentation](https://magrittr.tidyver
 We can write the data to disk using `write_*` functions - `write_tsv` saves a tab-separated file, `write_csv` as comma separated, with `write_delim` we can specify how we want to separate columns. There are many more functions, you can read about them [here](https://readr.tidyverse.org/)
 
 ```{r write, exercise = TRUE, exercise.eval = TRUE}
-starwars %>%
+starwars[, 1:9 ] %>%
   head() %>%
   write_csv("starwars_head.csv")
 ```
@@ -275,18 +275,6 @@ starwars %>%
   top_n(-1, ratio)
 ```
 
-```{r thin_quiz}
-quiz(
-  question("Who has the lowest mass to height ratio?",
-    answer("Wat Tambor"),
-    answer("Yoda"),
-    answer("Ratts Tyerell", correct = TRUE),
-    answer("Jabba Desilijic Tiure", 
-           message = "Hmm, Jabba has the biggest mass to height ratio. Did you forget to reverse the ordering in top_n? :)"), 
-    random_answer_order = TRUE, 
-    try_again = TRUE)
-  )
-```
 
 4. Who has appeared in all movies? 
 
