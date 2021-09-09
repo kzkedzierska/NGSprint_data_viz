@@ -395,7 +395,7 @@ question("What percent of the data lies between the whiskers - i.e. the furthest
 ```
 
 
-```{r box_violin, exercise = TRUE, exercise.eval = TRUE, exercise.lines	= 29, fig.width = 10, fig.width = 4}
+```{r box_violin, exercise = TRUE, exercise.eval = TRUE, exercise.lines	= 29, fig.width = 15, fig.width = 4}
 violin_box_plt <- 
   penguins_complete_df %>%
   ggplot(aes(species, body_mass_g, group = interaction(species, sex))) +
@@ -472,6 +472,9 @@ It's a perfect time to read up on phenomenon in which the trend in several group
 (although some argue this is not a paradox). More on [wikipedia](https://en.wikipedia.org/wiki/Simpson's_paradox) and in a [nice video by minutephysics](https://www.youtube.com/watch?v=ebEkn-BiW5k).
 
 ![Rafael Irizarry (@rafalab) visualisation of Simpson's paradox](images/simpsons-paradox.gif)
+
+**Exercise:** How can you show that on the body mass and bill depth plot?
+
 
 ```{r body_bill_paradox, exercise = TRUE, exercise.blanks = "___+"}
 penguins_complete_df %>%
@@ -736,6 +739,8 @@ Links to inspire yourself:
 * [The R Graph Gallery](https://www.r-graph-gallery.com/index.html)
 * [Data Imaginist](https://www.data-imaginist.com/) - blog of [Thomas Lin Pedersen](https://twitter.com/thomasp85) creator of [patchwork](https://patchwork.data-imaginist.com/index.html) and [ggforce](https://ggforce.data-imaginist.com/)
 * [Website](https://clauswilke.com/) of [Claus O. Wilke](https://twitter.com/clauswilke) - author of [Fundamentals of Data Visualization (book)](https://clauswilke.com/dataviz/) and [ggridges (package)](https://wilkelab.org/ggridges/index.html) 
+* [Website](https://twitter.com/kjhealy) of [Kieran Healy](https://twitter.com/kjhealy) - author of [Data Visualization: A Practical Introduction.](https://socviz.co/index.html)
+
 
 ## Exercises
 
@@ -745,13 +750,15 @@ Links to inspire yourself:
 
 ```
 
-2. Put together a visually appealing infographic describing the Palmer Penguins data set. Select the key figures, decorate them with key annotations and showcase the most important things about the dataset. Write down the points you want to make and the stories you want to tell by those figures.
+2. Put together a visually appealing infographic describing the `ggplot2movies::movies` dataset. Select the key figures, decorate them with key annotations and showcase the most important things about the dataset. Write down the points you want to make and the stories you want to tell by those figures.
 
-```{r infographic, exercise = TRUE, exercise.lines	= 25}
+Run the following command in your console to learn more about the dataset. It should open a description in the `Help` pane.
 
+```{r, eval = FALSE, echo = TRUE}
+?ggplot2movies::movies
 ```
 
 
-## Project
+```{r infographic, exercise = TRUE}
 
-Now that you've created and customised many figures it's time for you to tell the story. Each group will be now assigned another dataset. Your task is to explore it and tell its **story**. You can create an R notebook, a GDoc with copied figures, blog post or an infographic. 
+```

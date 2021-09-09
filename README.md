@@ -6,9 +6,8 @@ Hello and welcome to the NGSprint Data Visualization hackathon!
 
 You will find materials and instructions for the Data Visualization hackathon during NGSprint event.
 
-When: 8 - 15.09.2021  
-Where: Discord & Zoom
-
+**When**: 8 - 15.09.2021  
+**Where**: Discord & Zoom
 
 More info about the event can be found on [the website](https://ngschool.eu/ngsprint/). 
 
@@ -24,7 +23,9 @@ The tutorial part of the hackathon will be run in R, therefore you will need:
 * A recent version of RStdudio [(download from here)](https://www.rstudio.com/products/rstudio/download/#download)
 * packages listed in `prep_help.R` (you will also find helper functions to install the packages in the file).
 
-If you run into issues installing R and RStudio you can try [RStudio Cloud](https://rstudio.cloud/projects) - you will need to set up an account and install the packages using the code in the `prep_help.R` file. 
+~~If you run into issues installing R and RStudio you can try [RStudio Cloud](https://rstudio.cloud/projects) - you will need to set up an account and install the packages using the code in the `prep_help.R` file.~~ <- edited as the RStudio Cloud free account does not give enough resources. 
+
+
 
 ### Previous knowledge
 
