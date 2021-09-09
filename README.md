@@ -33,7 +33,7 @@ If you don't feel confident using R I would highly recommend going through some 
 
 * **Introduction to R** [[YouTube recording](https://youtu.be/zrqIhS2zUFk), [GitHub repository](https://github.com/NGSchoolEU/NGSeminaR)] by [Maja Kuzman](https://twitter.com/maja_kuzman)  
 * **R for Data Science (with tidyverse and ggplot2)** [[YouTube recording](https://youtu.be/G8cGmdrCsUs), [GitHub repository](https://github.com/sienkie/R_for_data_science)] by [Karolina Sienkiewicz](https://twitter.com/sienkieee)  
-* **R - functions and fundamentals** [[YouTube recording](hhttps://youtu.be/Rh9K5tHOm1c), [GitHub repository](https://github.com/anamariaelek/NGSeminar)] by [Anamaria Elek](https://twitter.com/anamariaelek)  
+* **R - functions and fundamentals** [[YouTube recording](https://youtu.be/Rh9K5tHOm1c), [GitHub repository](https://github.com/anamariaelek/NGSeminar)] by [Anamaria Elek](https://twitter.com/anamariaelek)  
 
 ## Materials
 
