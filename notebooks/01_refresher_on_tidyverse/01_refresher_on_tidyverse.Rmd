@@ -1,8 +1,8 @@
 ---
-title: "Introduction to Data Visualization"
+title: "Refresher on tidyverse and plotting in R"
 subtitle: "Tutorial for NGSprint Data Visualization in Bioinformatics"
 author: "[Kasia Kedzierska](https://kasia.codes/)"
-date: "Created on 06 Sep, 2021 <br>Last compiled on `r format(Sys.time(), '%d %b, %Y')`"
+date: "Created on 09 Sep, 2021 <br>Last compiled on `r format(Sys.time(), '%d %b, %Y')`"
 output: 
   learnr::tutorial:
     allow_skip: true
@@ -12,23 +12,163 @@ runtime: shiny_prerendered
 
 ```{r setup, include=FALSE}
 library(learnr)
+library(tidyverse)
 knitr::opts_chunk$set(echo = FALSE)
 ```
 
+## Aim
 
-# More tidyverse
+This is a short walkthrough the most important `tidyverse` functions. Includes also a primer on plotting in R.  
 
-```{r}
-library(tidyverse)
-data(starwars)
-starwars
+## Setup 
+
+We start by loading all the necessary packages. There's quite a few, but they will allow us to make pretty plots. 
+
+Throughout this tutorial we will use various plot themes, we will change the various aspects of the plots aesthetics to get comfortable with customizing the figures. We will see Some of them will help us tell the story, others will be a matter of taste. In all cases we will learn how to plot the data, how to change the way it is plotted, but also, you will hopefully learn which themes and settings you like most. 
+
+```{r library-calls, echo = TRUE, eval = FALSE}
+# the package of all packages 
+library(tidyverse) 
+# penguins data set
+library(ggsci)
+# composer of plots 
+library(patchwork)
 ```
 
-## Revision
+### Dataset
+
+We will be using `starwars` dataset in this tutorial. This dataset contains information about starwars characters, such as their name, height, mass, vehicle etc. The dataset is loaded with `tidyverse` package, and for more information on it use `?tidyverse::starwars` command in your R console.
+
+```{r dataset, exercise = TRUE, exercise.eval = TRUE} 
+starwars
+```
+## Documentation
+
+[Tidyverse](https://www.tidyverse.org/) has very robust documentation - you can read it online or in your RStudio by using `?` and `??`.
+
+```{r echo = TRUE, eval = FALSE}
+?mutate # this will open a help page for a mutate package
+```
+
+### Cheatsheets
+
+Many packages in `tudyverse` have their own chestsheets - visual summaries of a given package with most frequently used command:
+
+* Reading and writing [readr](https://readr.tidyverse.org/#cheatsheet)  
+* Data manipulation: [dplyr](https://dplyr.tidyverse.org/#cheat-sheet)  
+* Tidying data: [tidyr](https://tidyr.tidyverse.org/#cheatsheet)  
+* Visualisation: [ggplot2](https://ggplot2.tidyverse.org/#cheatsheet)  
+* String manipulation: [stringr](https://stringr.tidyverse.org/#cheatsheet)  
+
+## The pipe
+
+The most important thing in the `tidyverse` universe, in my opinion, is the pipe `%>%`. The best way to visualize the concept of a pipe is as follows:
+
+You could write R code as follows: 
+
+```{r, echo = TRUE, eval = FALSE}
+leave_house(get_dressed(get_out_of_bed(wake_up(me))))
+```
+
+or like this:
+
+```{r echo = TRUE, eval = FALSE}
+woken_up_me <- wake_up(me)
+standing_up_me <- get_out_of_bed(woken_up_me)
+dressed_me <- get_dressed(standing_up_me)
+ready_me <- leave_house(dressed_me)
+```
+
+But, to ease the readability, you can write it as follows:
+
+```{r, echo = TRUE, eval = FALSE}
+me %>%
+  wake_up() %>%
+  get_out_of_bed() %>%
+  get_dressed() %>%
+  leave_house()
+```
+
+
+For example, if we want to see the top 6 rows of our dataset, we can use the following command.
+```{r head_non_pipe, exercise = TRUE, exercise.eval = TRUE}
+head(starwars)
+```
+But we can also write it using the pipe.
+
+```{r head_pipe, exercise = TRUE, exercise.eval = TRUE}
+starwars %>% # we take starwars dataframe
+  head() # and taking its head
+```
+
+To read more about the pipe, check [Pipe documentation](https://magrittr.tidyverse.org/reference/pipe.html).
+
+## Reading and writing
+
+We can write the data to disk using `write_*` functions - `write_tsv` saves a tab-separated file, `write_csv` as comma separated, with `write_delim` we can specify how we want to separate columns. There are many more functions, you can read about them [here](https://readr.tidyverse.org/)
+
+```{r write, exercise = TRUE, exercise.eval = TRUE}
+starwars %>%
+  head() %>%
+  write_csv("starwars_head.csv")
+```
+
+And equivalently, we can read data from disk using one of the `read_*` functions.
+
+```{r read, exercise = TRUE, exercise.eval = TRUE}
+read_delim("starwars_head.csv", delim = ",")
+```
+
+## Data manipulation
+
+### mutate
+
+`mutate` adds new columns that can be functions of existing columns. For example, if we want to transform height from cm to inches we can use the following code.
+
+```{r mutate, exercise = TRUE, exercise.eval = TRUE}
+starwars %>%
+  mutate(height_in = height / 2.54)
+```
+
+### select 
+
+`select` allows us to choose the columns we want to focus on. For example, we want to easily see the new column we just created.
+
+```{r select, exercise = TRUE, exercise.eval = TRUE}
+starwars %>%
+  mutate(height_in = height / 2.54) %>%
+  select(name, height, height_in) %>%
+  head()
+```
+
+### filter
+
+`filter` allows us to pick rows based on value(s) in column(s). Let's say we want to know which characters have yellow eyes. 
+
+```{r filter, exercise = TRUE, exercise.eval = TRUE}
+starwars %>%
+  filter(eye_color == "yellow")
+```
+We might want to also see which character is the shortest.
+
+```{r filter2, exercise = TRUE, exercise.eval = TRUE}
+starwars %>%
+  filter(height == min(height, na.rm = TRUE))
+```
+
+We might also want to use multiple conditions. 
+
+```{r filter3, exercise = TRUE, exercise.eval = TRUE}
+starwars %>%
+  filter(skin_color == "brown",
+         height > median(height, na.rm = TRUE))
+```
 
 ### summarise
 
-```{r}
+`summarise` creates summaries from our data. We might be interested in learning the median values for height and mass, we can easily look them up with `summarise`.
+
+```{r summarise, exercise = TRUE, exercise.eval = TRUE}
 starwars %>% 
   summarise(median_height = median(height),
             median_mass = median(mass))
@@ -36,100 +176,233 @@ starwars %>%
 
 ### group_by
 
-```{r}
+`group_by` allows to perform operations based on some group. For example, if we would be interested in learning the median values for height and mass, but with respect to gender.
+
+```{r group_by, exercise = TRUE, exercise.eval = TRUE}
 starwars %>%
   group_by(gender) %>%
-  summarise(median_height = median(height),
-            median_mass = median(mass))
+  summarise(median_height = median(height, na.rm = TRUE),
+            median_mass = median(mass, na.rm = TRUE))
 ```
 
-### mutate
+## Other functions
 
-```{r}
-starwars %>%
-  mutate(height_in = height / 2.54)
-```
+`top_n` allows to get the top (or bottom) n rows with respect to value in a column.
 
-### filter
-
-```{r}
-starwars %>%
-  group_by(gender) %>%
-  filter(!is.na(gender)) %>%
-  summarise(median_height = median(height),
-            median_mass = median(mass))
-```
-
-### top_n
-
-```{r}
+```{r top_n, exercise = TRUE, exercise.eval = TRUE}
 starwars %>%
   group_by(gender) %>%
   top_n(1, height)
 ```
 
+`count` allows to count number of rows based on for example some groups.
 
-
-## Topic 1
-
-### Exercise 
-
-*Here's a simple exercise with an empty code chunk provided for entering the answer.*
-
-Write the R code required to add two plus two:
-
-```{r two-plus-two, exercise=TRUE}
-
+```{r count, exercise = TRUE, exercise.eval = TRUE}
+starwars %>%
+  group_by(gender, hair_color) %>%
+  count()
 ```
 
-### Exercise with Code
+## Excercises
 
-*Here's an exercise with some prepopulated code as well as `exercise.lines = 5` to provide a bit more initial room to work.*
+1. Which specie is the heaviest?  
 
-Now write a function that adds any two numbers and then call it:
-
-```{r add-function, exercise=TRUE, exercise.lines = 5}
-add <- function() {
-  
-}
+```{r heaviest, exercise=TRUE}
+starwars %>%
 ```
 
-## Topic 2
-
-### Exercise with Hint
-
-*Here's an exercise where the chunk is pre-evaluated via the `exercise.eval` option (so the user can see the default output we'd like them to customize). We also add a "hint" to the correct solution via the chunk immediate below labeled `print-limit-hint`.*
-
-Modify the following code to limit the number of rows printed to 5:
-
-```{r print-limit, exercise=TRUE, exercise.eval=TRUE}
-mtcars
+```{r heaviest-solution}
+starwars %>%
+  group_by(species) %>%
+  summarise(med_mass = median(mass, na.rm = TRUE)) %>%
+  top_n(1, med_mass)
 ```
 
-```{r print-limit-hint}
-head(mtcars)
-```
-
-### Quiz
-
-*You can include any number of single or multiple choice questions as a quiz. Use the `question` function to define a question and the `quiz` function for grouping multiple questions together.*
-
-Some questions to verify that you understand the purposes of various base and recommended R packages:
-
-```{r quiz}
+```{r heaviest_quiz}
 quiz(
-  question("Which package contains functions for installing other R packages?",
-    answer("base"),
-    answer("tools"),
-    answer("utils", correct = TRUE),
-    answer("codetools")
-  ),
-  question("Which of the R packages listed below are used to create plots?",
-    answer("lattice", correct = TRUE),
-    answer("tools"),
-    answer("stats"),
-    answer("grid", correct = TRUE)
+  question("Which specie is the heaviest",
+    answer("Kaleesh"),
+    answer("Trandoshan"),
+    answer("Hutt", correct = TRUE),
+    answer("Wookiee"), random_answer_order = TRUE)
   )
-)
 ```
+
+2. Who's the tallest?  
+
+```{r tallest, exercise=TRUE}
+starwars %>% 
+  
+```
+
+```{r tallest-solution}
+starwars %>% 
+  top_n(1, height) 
+```
+
+```{r talles_quiz}
+quiz(
+  question("Who is the tallest?",
+    answer("Roos Tarpals"),
+    answer("Lama Su"),
+    answer("Yarael Poof", correct = TRUE),
+    answer("Chewbacca"), random_answer_order = TRUE)
+  )
+```
+
+3. Who has the lowest mass to height ratio? I.e. is an outlier (marked as orange triangle) on the height to mass ratio plot below? 
+
+```{r}
+starwars %>%
+  mutate(outlier = ifelse(mass > 1000, "b", "a")) %>%
+  ggplot(aes(mass, height, shape = outlier, color = outlier)) +
+  geom_point(size = 4, alpha = 0.7) +
+  theme_minimal() +
+  labs(y = "Height (cm)", x = "Weight (kg)") +
+  scale_color_manual(values = c("a" = "black", "b" = "darkorange")) +
+  theme(legend.position = "none")
+```
+
+```{r thin, exercise=TRUE}
+starwars %>% 
+  
+```
+
+
+```{r thin-solution}
+starwars %>%
+  mutate(ratio = mass / height) %>%
+  top_n(-1, ratio)
+```
+
+```{r thin_quiz}
+quiz(
+  question("Who has the lowest mass to height ratio?",
+    answer("Wat Tambor"),
+    answer("Yoda"),
+    answer("Ratts Tyerell", correct = TRUE),
+    answer("Jabba Desilijic Tiure", 
+           message = "Hmm, Jabba has the biggest mass to height ratio. Did you forget to reverse the ordering in top_n? :)"), 
+    random_answer_order = TRUE, 
+    try_again = TRUE)
+  )
+```
+
+4. Who has appeared in all movies? 
+
+*Hint*: you need to use `unest` function on one of the columns. Check the help for `unnest` by typing `?unnest`.
+
+```{r all_movies, exercise=TRUE, exercise.lines = 8}
+starwars %>%
+  unnest(___) 
+```
+
+```{r all_movies-solution}
+starwars %>%
+  unnest(films) %>%
+  group_by(name) %>%
+  summarise(n_films = n()) %>%
+  ungroup() %>%
+  top_n(1, n_films)
+```
+
+5. Who has appeared in the least movies?  
+
+```{r least_movies, exercise=TRUE, exercise.lines = 8}
+starwars %>%
+  unnest(___) 
+```
+
+```{r least_movies-solution}
+starwars %>%
+  unnest(films) %>%
+  group_by(name) %>%
+  summarise(n_films = n()) %>%
+  ungroup() %>%
+  top_n(-1, n_films)
+```
+
+6. List the most represented species from each homeworld.  
+
+```{r homeworld, exercise = TRUE}
+starwars %>%
+  
+```
+
+```{r homeworld-solution}
+starwars %>%
+  group_by(homeworld, species) %>%
+  summarise(n_beings = n()) %>%
+  group_by(species) %>%
+  top_n(1, n_beings)
+```
+
+7. Column `starships` stores information of starships given charater piloted. It stores the names of those starships as a `list`. Firstly, create a new column `n_pilots` which stores number of pilots of each straship. Secondly, list all the characters that piloted the same starship together with that starship name.
+
+```{r n_pilots, exercise = TRUE}
+starwars %>%
+  unnest(starships)
+```
+
+```{r n_pilots-solution}
+starwars %>%
+  unnest(starships) %>%
+  group_by(starships) %>%
+  mutate(n_pilots = n()) %>%
+  filter(n_pilots > 1) %>%
+  select(name, starships, n_pilots) %>%
+  arrange(-n_pilots, starships, name) %>%
+  nest(name = name)
+```
+
+## Data visualisation
+
+We first need to create an object - a canvas for our plot.
+
+```{r ggplot, exercise = TRUE, exercise.eval = TRUE}
+plt <- 
+  ggplot()
+plt
+```
+
+Next, we need to tell it pass the data we will be plotting.
+
+```{r ggplot_data, exercise = TRUE, exercise.eval = TRUE}
+plt <- 
+  starwars %>%
+  ggplot()
+plt
+```
+
+Then, we specify what will be on our axis.
+
+```{r ggplot_xy, exercise = TRUE, exercise.eval = TRUE}
+plt <- 
+  starwars %>%
+  ggplot(aes(x = mass, y = height))
+plt
+```
+
+Then we are choosing `geom` we will plotting. Here, we want to plot points so we are choosing `geom_point()`. Because we will be now creating the elements of the plot, we will add them by using a `+`.
+
+```{r ggplot_geom, exercise = TRUE, exercise.eval = TRUE}
+plt <- 
+  starwars %>%
+  ggplot(aes(x = mass, y = height)) +
+  geom_point()
+plt
+```
+
+We would use a different kind of `geom` if we would want to, for example, count number of characters per specie.
+
+```{r ggplot_geom_bar, exercise = TRUE, exercise.eval = TRUE}
+plt_bar <-
+  starwars %>%
+  ggplot(aes(x = species)) +
+  geom_bar() +
+  theme(axis.text.x = element_text(angle = 60, hjust = 1))
+```
+
+For more geoms, navigate to the [ggplot2 cheatsheet](https://ggplot2.tidyverse.org/#cheatsheet).
+
 
