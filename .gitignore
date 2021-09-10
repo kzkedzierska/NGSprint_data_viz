@@ -2,5 +2,8 @@
 .Rhistory
 .RData
 .Ruserdata
-data/
-*.Rproj
+notebooks/02_introduction/02_introduction.html
+notebooks/02_introduction/02_introduction_files
+notebooks/03_TCGA_data/03_TCGA_data_files/
+notebooks/03_TCGA_data/03_TCGA_data_cache/
+notebooks/03_TCGA_data/GDCdata

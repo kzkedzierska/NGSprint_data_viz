@@ -1,7 +1,7 @@
-name,height,mass,hair_color,skin_color,eye_color,birth_year,sex,gender,homeworld,species,films,vehicles,starships
-Luke Skywalker,172,77,blond,fair,blue,19,male,masculine,Tatooine,Human,,,
-C-3PO,167,75,NA,gold,yellow,112,none,masculine,Tatooine,Droid,,,
-R2-D2,96,32,NA,"white, blue",red,33,none,masculine,Naboo,Droid,,,
-Darth Vader,202,136,none,white,yellow,41.9,male,masculine,Tatooine,Human,,,
-Leia Organa,150,49,brown,light,brown,19,female,feminine,Alderaan,Human,,,
-Owen Lars,178,120,"brown, grey",light,blue,52,male,masculine,Tatooine,Human,,,
+name,height,mass,hair_color,skin_color,eye_color,birth_year,sex,gender
+Luke Skywalker,172,77,blond,fair,blue,19,male,masculine
+C-3PO,167,75,NA,gold,yellow,112,none,masculine
+R2-D2,96,32,NA,"white, blue",red,33,none,masculine
+Darth Vader,202,136,none,white,yellow,41.9,male,masculine
+Leia Organa,150,49,brown,light,brown,19,female,feminine
+Owen Lars,178,120,"brown, grey",light,blue,52,male,masculine
