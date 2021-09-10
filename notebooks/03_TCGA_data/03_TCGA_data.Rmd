@@ -1,0 +1,317 @@
+---
+title: "TCGA data & packages primer"
+subtitle: "NGSprint Data Visualization in Bioinformatics"
+author: "[Kasia Kedzierska](https://kasia.codes/)"
+date: "Created on 09 Sep, 2021 <br>Last compiled on `r format(Sys.time(), '%d %b, %Y')`"
+output:
+  html_document:
+    df_print: paged
+    theme: united
+    toc: yes
+---
+
+# Setup
+
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(cache = TRUE, dpi = 300)
+```
+
+
+Run if you don't have the packages installed.
+
+```{r, eval = FALSE}
+# a helper abbreviation
+`%not in%` <- Negate(`%in%`)
+
+if (!requireNamespace("BiocManager", quietly = TRUE)) {
+    install.packages("BiocManager")
+}
+
+needed_packages <- 
+  c("recount3", "maftools", "DESeq2", "TCGAbiolinks")
+
+for (pkg in needed_packages) {
+  if (pkg %not in% rownames(installed.packages())) {
+    print(paste("Trying to install", pkg))
+    BiocManager::install(pkg)
+    if ((pkg %not in% rownames(installed.packages()))) {
+      msg <- paste("ERROR: Unsuccessful!", pkg, "not installed!",
+                   "Check the log and try installing the package manually.")
+      stop(msg)
+    } 
+  }
+  library(pkg, character.only = TRUE)
+  ifelse(pkg %in% loadedNamespaces(), 
+         print(paste("Successful!", pkg, "loaded.")),
+         print(paste("ERROR: Unsuccessful!", pkg, 
+                     "not loaded. Check error msg.")))
+}
+```
+
+Load all the packages and define functions.
+
+```{r message = FALSE, warning = FALSE}
+# for unified and processed RNA-seq data
+library(recount3)
+# to normalize the RNA-seq data 
+library(DESeq2) 
+# for access to TCGA data
+library(TCGAbiolinks)
+# to look at the data
+library(tidyverse)
+# to visualize the mutation data
+library(maftools)
+# to create heatmaps
+library(ComplexHeatmap)
+
+scale2 <- function(mat, ...) {
+  t(scale(t(mat), ...))
+}
+```
+
+# Gene expression
+
+## Preparing the data
+
+Using `recount3` we download the data for a Lower Grade Glioma (**LGG**). In order to read more about the package and explore more of its function, refer to the [manual](http://research.libd.org/recount3/index.html) and [quick guide](http://research.libd.org/recount3/articles/recount3-quickstart.html).
+
+```{r message=FALSE, warning=FALSE}
+rse_gene <- 
+  create_rse(
+    subset(
+      available_projects(),
+      project == "LGG" & project_type == "data_sources"
+    )
+  )
+```
+
+Now, let's explore what are we looking at?
+
+```{r}
+assayNames(rse_gene)
+```
+We need to scale the reads to be able to use them in `DESeq2` processing.
+
+```{r}
+assay(rse_gene, "counts") <- 
+  transform_counts(rse_gene)
+```
+
+The attached colData contains a lot of information that we can use on top of the expression data. 
+
+```{r}
+sample_sheet <-
+  colData(rse_gene) %>%
+  data.frame() %>%
+  rownames_to_column("sample_id")
+
+sample_sheet %>%
+  head(n = 3)
+```
+For plotting, we will use the variance stabilizing transformation (**vst**) normalized counts (as it is quicker than **rlog**). To read more about normalization, please read [Data transformations and visualization](https://www.bioconductor.org/packages/devel/bioc/vignettes/DESeq2/inst/doc/DESeq2.html#data-transformations-and-visualization) section of RNA-seq data anlysis guide from Bioconductor.
+
+```{r}
+normalized_counts <- 
+  vst(assays(rse_gene)$counts)
+```
+
+## First visualization
+
+Let's see the expression of top variable genes.
+
+```{r}
+row_var <-
+  rowVars(normalized_counts)
+```
+
+Now, let's generate the first heatmap with top 0.5 % of highly variable genes.
+
+```{r}
+ht <-
+  Heatmap(scale2(normalized_counts[row_var > quantile(row_var, 0.995),]),
+        show_row_names = FALSE, show_column_names = FALSE,
+        clustering_distance_rows = "pearson", name = "gene expression",
+        col = viridis::viridis(100))
+
+ht
+```
+  
+Do we have only single samples in the data?
+
+```{r}
+sample_sheet %>% 
+  select(tcga.tcga_barcode, tcga.cgc_sample_sample_type) %>% 
+  mutate(patient_id = str_extract(tcga.tcga_barcode, 
+                                  "[^-]{4}-[^-]{2}-[^-]{4}")) %>% 
+  group_by(patient_id) %>% 
+  summarise(count = n(), 
+            sample_type = paste(unique(sort(tcga.cgc_sample_sample_type)),
+                                collapse = ", ")) %>% 
+  filter(count > 1)
+```
+
+Let's add the sample type annotation to the heatmap.
+
+```{r}
+ha <-
+  sample_sheet %>% 
+  select(sample_id, `Sample type` = tcga.cgc_sample_sample_type) %>%
+  column_to_rownames("sample_id") %>%
+  HeatmapAnnotation(df = .)
+
+ht2 <-
+  Heatmap(scale2(normalized_counts[row_var > quantile(row_var, 0.995),]),
+        show_row_names = FALSE, show_column_names = FALSE,
+        clustering_distance_rows = "pearson", name = "gene expression",
+        col = viridis::viridis(100), top_annotation = ha)
+
+ht2
+```
+
+
+We don't see any separate clusters between Primary and Recurrent Tumors (albeit we only are looking at 0.5% of most variable genes and there is quite significant class imbalance). Depend on what we would want to show next, we might want to remove those recurrent samples.
+
+# Somatic mutations
+
+We will now use the great `TCGAbiolinks` package that help accessing the vast data source of TCGA. Read more abou this great package [here](https://www.bioconductor.org/packages/release/bioc/vignettes/TCGAbiolinks/inst/doc/index.html).
+
+```{r, message=FALSE, warning=FALSE, error=FALSE}
+maf <- 
+  GDCquery_Maf("LGG", pipelines = "mutect2") %>% 
+  read.maf()
+```
+
+First thing we can do is the mutation specific summary - what kind of mutations do we have in a sample? For that we will use functions from another great package - `maftools` a dedicated package to visualize maf data. You can see what brilliant things the package does and what things you can easily investigate [here](https://bioconductor.org/packages/release/bioc/vignettes/maftools/inst/doc/maftools.html).
+
+```{r}
+plotmafSummary(maf = maf, rmOutlier = TRUE, 
+               addStat = 'median', dashboard = TRUE, log_scale = TRUE)
+
+```
+First thing we see is that this cancer type does not have many mutations. We can compare it with other TCGA cancer types. 
+
+```{r}
+tcga_mutation_burden <- 
+  tcgaCompare(maf = maf, cohortName = "LGG")
+```
+
+We can see that LGG is one of the less mutated cancers. 
+
+Now, we can look at the top mutated genes.
+
+```{r}
+oncoplot(maf = maf, top = 10)
+```
+*IDH1* is by far the most mutated gene - are mutations in that gene in one hotspot or distributed? Let's visualize the mutations in this gene. 
+
+```{r}
+lollipopPlot(maf, "IDH1", labelPos = 'all')
+```
+Clearly the R132 position is a hotspot, mutated in more than 3/4 of the samples!
+
+The case is not so clear with TP53.
+
+```{r}
+lollipopPlot(maf, "TP53")
+```
+And neither it is with *ATRX*. Interestingly, this gene is enriched for Frameshift and Nonsense mutations.
+
+```{r}
+lollipopPlot(maf, "ATRX")
+```
+
+We can also look at the cooccurences and mutual exclusivity - which genes are frequently mutated together? Which aren't?
+
+```{r}
+somaticInteractions(maf, top = 15, pvalue = c(0.01, 0.05))
+```
+
+# Clinical data 
+
+With the `recount3` data comes clinical information as well. For example, we can check the sex or ethnicity of the patients with `tcga.gdc_cases.demographic.` columns. 
+
+```{r}
+sample_sheet %>%
+  select(starts_with("tcga.gdc_cases.demographic."))
+```
+There's much more data in that dataframe - after all there are almost a thousand columns.
+
+We can also access addiitional data from `TCGAbiolinks`, for example we can see in what subtypes were the samples separated into. 
+
+```{r}
+tcga_subtype_data <-
+  TCGAquery_subtype(tumor = "lgg")
+
+tcga_subtype_data %>%
+  select(ends_with("subtype"))
+```
+
+The dataframe contains much more data, and the function prints out information about the publication the data comes from. 
+
+# What next?
+
+You can do much more with those data - firstly, you can draw inspiration from the vignettes of the packages. Secondly, you can see what is interesting to you, what you would want to know? Thirdly, this is already published data and you can always refer to the paper - maybe there are some figures you have an idea to improve?
+
+Few ideas from the top of my head:
+* improve the heatmap by adding the subtype, sex and other variable annotations. Add the mutation in various top genes as annotations at the bottom;
+* acces sthe suviaval data and see how they separate based on the subtype;
+* visualise point mutations on the protein (for example [here](https://michelanglo.sgc.ox.ac.uk/))
+
+For example, in order to add IDH1 annotation, we need to join the information from two dataframes (one that has unique column ids and one that has the information about mutation).
+
+```{r}
+sample_sheet_with_patient_id <-
+  sample_sheet %>% 
+  mutate(patient_id = str_extract(tcga.tcga_barcode, 
+                                  "[^-]{4}-[^-]{2}-[^-]{4}")) %>%
+  select(sample_id, patient_id)
+
+idh1_mutation <-
+  maf@data %>%
+  mutate(patient_id = str_extract(Tumor_Sample_Barcode, 
+                                  "[^-]{4}-[^-]{2}-[^-]{4}")) %>%
+  select(Hugo_Symbol, patient_id) %>%
+  filter(Hugo_Symbol == "IDH1")
+
+ha_bottom <-
+  sample_sheet_with_patient_id %>%
+  left_join(idh1_mutation) %>%
+  mutate(present = ifelse(is.na(Hugo_Symbol), FALSE, TRUE)) %>%
+  group_by(sample_id) %>%
+  summarise(IDH1 = any(present)) %>%
+  column_to_rownames("sample_id") %>%
+  HeatmapAnnotation(df = ., col = list("IDH1" = c(`TRUE` = "black", 
+                                                  `FALSE` = "white")))
+```
+
+When we have the annotation, we can add it to the plot.
+
+```{r}
+ht3 <-
+  Heatmap(scale2(normalized_counts[row_var > quantile(row_var, 0.995),]),
+        show_row_names = FALSE, show_column_names = FALSE,
+        clustering_distance_rows = "pearson", name = "gene expression",
+        col = viridis::viridis(100), 
+        top_annotation = ha, bottom_annotation = ha_bottom)
+
+ht3
+```
+
+
+# Project
+
+For your project your goal is to describe the selected TCGA cohort:
+
+* demographics (age, gender, and so on) - who were the patients whose data was analysed?
+* survival data - what is the survival of this cancer?
+* what are the subtypes identified in the analyses?
+* somatic mutations - what are the most frequently mutated genes? what are the common mutations?
+* gene expression - are there clearly visible patterns in gene expression? How does the expression of the highly mutated genes look like? 
+
+Create a blogpost with description of your analysis, document your progress. Try to add interactivity to your visualizations. 
+
+You will have to present the data to the rest of the hackathon groups at the end of this event. Prepare 10 minutes of showcasing the data, your visualizations.
+
+This is the main project of this hackathon. From now on you will be working with your teams on your own and I will be available to guide you, answer your questions. You are expected to spend few hours each day working on this. 
+
+Good luck! I'm already excited to see your data viz!
