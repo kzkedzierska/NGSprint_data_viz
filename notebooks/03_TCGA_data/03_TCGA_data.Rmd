@@ -173,12 +173,35 @@ We don't see any separate clusters between Primary and Recurrent Tumors (albeit 
 
 # Somatic mutations
 
-We will now use the great `TCGAbiolinks` package that help accessing the vast data source of TCGA. Read more abou this great package [here](https://www.bioconductor.org/packages/release/bioc/vignettes/TCGAbiolinks/inst/doc/index.html).
+We will now use the great `TCGAbiolinks` package that help accessing the vast data source of TCGA. Read more about this great package [here](https://www.bioconductor.org/packages/release/bioc/vignettes/TCGAbiolinks/inst/doc/index.html).
 
-```{r, message=FALSE, warning=FALSE, error=FALSE}
-maf <- 
-  GDCquery_Maf("LGG", pipelines = "mutect2") %>% 
-  read.maf()
+Because of the unexpected maintenance of the GDC server we will have to use other means to download the mutations data. For that we will use the `maftools::tcgaLoad` function. Note that that function comes with the v2.8 version, the code below should tell you if you need to install the package. 
+
+Note2: This maf from `maftools::tcgaLoad` is generated based on the hg19 genome, while the `TCGAbiolinks::GDCquery_Maf` you could choose hg38 or hg19 (on default it downloaded the hg38). 
+
+
+```{r maf, message=FALSE, warning=FALSE, error=FALSE}
+# Because of the GDC maintenance we can't access the maf files
+# maf <- 
+  # GDCquery_Maf("GBM", pipelines = "mutect2") %>% 
+  # read.maf()
+
+tryCatch(maf <- tcgaLoad(study = "LGG"), 
+         error = function(e) {
+           print(paste(rep("#", 50), collapse = ""))
+           print(paste0("# ERROR! Read the message below!", 
+                        paste(rep(" ", 17), collapse = ""),
+                        "#"))
+           print(paste(rep("#", 50), collapse = ""))
+           print(e)
+           print(paste("If you're seeing this message you probably don't have",
+                       "maftools package loaded, or have an older version.", 
+                       "This function is available with v2.8.",
+                       "Install the new version of maftools package with",
+                       "`BiocManager::install('PoisonAlien/maftools')`", 
+                       "and try again!"))
+           })
+
 ```
 
 First thing we can do is the mutation specific summary - what kind of mutations do we have in a sample? For that we will use functions from another great package - `maftools` a dedicated package to visualize maf data. You can see what brilliant things the package does and what things you can easily investigate [here](https://bioconductor.org/packages/release/bioc/vignettes/maftools/inst/doc/maftools.html).
