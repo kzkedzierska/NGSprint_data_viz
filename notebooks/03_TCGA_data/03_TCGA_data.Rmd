@@ -28,7 +28,7 @@ if (!requireNamespace("BiocManager", quietly = TRUE)) {
 }
 
 needed_packages <- 
-  c("recount3", "maftools", "DESeq2", "TCGAbiolinks")
+  c("recount3", "maftools", "DESeq2", "TCGAbiolinks", "biomaRt")
 
 for (pkg in needed_packages) {
   if (pkg %not in% rownames(installed.packages())) {
@@ -40,6 +40,18 @@ for (pkg in needed_packages) {
       stop(msg)
     } 
   }
+  library(pkg, character.only = TRUE)
+  ifelse(pkg %in% loadedNamespaces(), 
+         print(paste("Successful!", pkg, "loaded.")),
+         print(paste("ERROR: Unsuccessful!", pkg, 
+                     "not loaded. Check error msg.")))
+}
+
+pkg <- "InteractiveComplexHeatmap"
+if (pkg %not in% installed.packages()) {
+  print(paste("Trying to install", pkg))
+  remotes::install_github("jokergoo/InteractiveComplexHeatmap", 
+                          upgrade = "always")
   library(pkg, character.only = TRUE)
   ifelse(pkg %in% loadedNamespaces(), 
          print(paste("Successful!", pkg, "loaded.")),
@@ -115,61 +127,81 @@ normalized_counts <-
   vst(assays(rse_gene)$counts)
 ```
 
-## First visualization
+```{r}
+normalized_counts[1:5, 1:2]
+```
 
-Let's see the expression of top variable genes.
+
+Now, to simplify our analyses we want to have a) only Tumor Samples (unless you decide otherwise) and b) one sample per patient in the data set. 
+
+
+```{r}
+sample_sheet_one <-
+  sample_sheet %>%
+  filter(tcga.cgc_sample_sample_type == "Primary Tumor") %>%
+  mutate(patient_id = str_extract(tcga.tcga_barcode, 
+                                "[^-]{4}-[^-]{2}-[^-]{4}")) %>%
+  group_by(patient_id) %>%
+  # this is quick, but dirty way to take just one repeat per patient
+  sample_n(1) 
+
+# select only the samples we want to keep
+normalized_counts <-
+  normalized_counts[ ,  sample_sheet_one$sample_id]
+
+# change rownames to nice patient ids
+colnames(normalized_counts) <- sample_sheet_one$patient_id
+
+normalized_counts[156:159, 1:2]
+```
+
+## Sample distances heatmap
+
+Let's calculate the variance between the genes, it will come in handy when we would like to narrow down the analyses to the most variable subset of genes.
 
 ```{r}
 row_var <-
   rowVars(normalized_counts)
 ```
 
-Now, let's generate the first heatmap with top 0.5 % of highly variable genes.
+Let's look at the sample distances - can we see some clustering?
+
+First, let's calculate the distances between our samples. For the sake of speed we will only take top 35% of genes.
+
+```{r}
+samples_dist <- dist(t(normalized_counts[row_var > quantile(row_var, 0.75),]))
+```
+
+And now, let's see the sample distances. For that we will use heatmap. A heatmap is a visualization of a matrix in which each cell is colored according to its value. 
+
+```{r}
+Heatmap(as.matrix(samples_dist), 
+        show_row_names = FALSE, 
+        show_column_names = FALSE, 
+        col = viridis::mako(100), 
+        show_row_dend = FALSE)
+```
+
+We can see that there are some samples with high and low similarity, meaning that we can see some organization in our data.
+
+## Gene expression heatmap
+
+Now, let's generate the heatmap showing expression of different genes. For that purpose, we select top 1% of highly variable genes.
+
+In here, the rows are genes and the columns are samples, meaning that each cell represents an expression value for a given gene in a given sample. In this heatmap, we visualized scaled values - meaning we subtracted the mean and dived by standard deviation. Scaling allows us to focus on the changes in expression between samples, regardless of absolute levels of expression of particular genes.
 
 ```{r}
 ht <-
-  Heatmap(scale2(normalized_counts[row_var > quantile(row_var, 0.995),]),
+  Heatmap(scale2(normalized_counts[row_var > quantile(row_var, 0.99),]),
         show_row_names = FALSE, show_column_names = FALSE,
         clustering_distance_rows = "pearson", name = "gene expression",
-        col = viridis::viridis(100))
+        col = viridis::viridis(100), use_raster = TRUE)
 
 ht
 ```
-  
-Do we have only single samples in the data?
 
-```{r}
-sample_sheet %>% 
-  select(tcga.tcga_barcode, tcga.cgc_sample_sample_type) %>% 
-  mutate(patient_id = str_extract(tcga.tcga_barcode, 
-                                  "[^-]{4}-[^-]{2}-[^-]{4}")) %>% 
-  group_by(patient_id) %>% 
-  summarise(count = n(), 
-            sample_type = paste(unique(sort(tcga.cgc_sample_sample_type)),
-                                collapse = ", ")) %>% 
-  filter(count > 1)
-```
+Those heatmap need some work - we need to add more information coming from additional data sources. But first, let see what type of data we have access to.
 
-Let's add the sample type annotation to the heatmap.
-
-```{r}
-ha <-
-  sample_sheet %>% 
-  select(sample_id, `Sample type` = tcga.cgc_sample_sample_type) %>%
-  column_to_rownames("sample_id") %>%
-  HeatmapAnnotation(df = .)
-
-ht2 <-
-  Heatmap(scale2(normalized_counts[row_var > quantile(row_var, 0.995),]),
-        show_row_names = FALSE, show_column_names = FALSE,
-        clustering_distance_rows = "pearson", name = "gene expression",
-        col = viridis::viridis(100), top_annotation = ha)
-
-ht2
-```
-
-
-We don't see any separate clusters between Primary and Recurrent Tumors (albeit we only are looking at 0.5% of most variable genes and there is quite significant class imbalance). Depend on what we would want to show next, we might want to remove those recurrent samples.
 
 # Somatic mutations
 
@@ -180,35 +212,36 @@ Because of the unexpected maintenance of the GDC server we will have to use othe
 Note2: This maf from `maftools::tcgaLoad` is generated based on the hg19 genome, while the `TCGAbiolinks::GDCquery_Maf` you could choose hg38 or hg19 (on default it downloaded the hg38). 
 
 
-```{r maf, message=FALSE, warning=FALSE, error=FALSE}
-# Because of the GDC maintenance we can't access the maf files
-# maf <- 
-  # GDCquery_Maf("GBM", pipelines = "mutect2") %>% 
-  # read.maf()
+```{r maf, message=FALSE, warning=FALSE, error=FALSE, results='hide'}
+maf <-
+  GDCquery_Maf("LGG", pipelines = "mutect2") %>%
+  read.maf(verbose = TRUE)
 
-tryCatch(maf <- tcgaLoad(study = "LGG"), 
-         error = function(e) {
-           print(paste(rep("#", 50), collapse = ""))
-           print(paste0("# ERROR! Read the message below!", 
-                        paste(rep(" ", 17), collapse = ""),
-                        "#"))
-           print(paste(rep("#", 50), collapse = ""))
-           print(e)
-           print(paste("If you're seeing this message you probably don't have",
-                       "maftools package loaded, or have an older version.", 
-                       "This function is available with v2.8.",
-                       "Install the new version of maftools package with",
-                       "`BiocManager::install('PoisonAlien/maftools')`", 
-                       "and try again!"))
-           })
-
+# now that GDC works again, we don't need this
+# 
+# tryCatch(maf <- tcgaLoad(study = "LGG"), 
+#          error = function(e) {
+#            print(paste(rep("#", 50), collapse = ""))
+#            print(paste0("# ERROR! Read the message below!", 
+#                         paste(rep(" ", 17), collapse = ""),
+#                         "#"))
+#            print(paste(rep("#", 50), collapse = ""))
+#            print(e)
+#            print(paste("If you're seeing this message you probably don't have",
+#                        "maftools package loaded, or have an older version.", 
+#                        "This function is available with v2.8.",
+#                        "Install the new version of maftools package with",
+#                        "`BiocManager::install('PoisonAlien/maftools')`", 
+#                        "and try again!"))
+#            })
 ```
 
 First thing we can do is the mutation specific summary - what kind of mutations do we have in a sample? For that we will use functions from another great package - `maftools` a dedicated package to visualize maf data. You can see what brilliant things the package does and what things you can easily investigate [here](https://bioconductor.org/packages/release/bioc/vignettes/maftools/inst/doc/maftools.html).
 
 ```{r}
 plotmafSummary(maf = maf, rmOutlier = TRUE, 
-               addStat = 'median', dashboard = TRUE, log_scale = TRUE)
+               addStat = 'median', dashboard = TRUE, 
+               log_scale = TRUE)
 
 ```
 First thing we see is that this cancer type does not have many mutations. We can compare it with other TCGA cancer types. 
@@ -237,7 +270,23 @@ The case is not so clear with TP53.
 ```{r}
 lollipopPlot(maf, "TP53")
 ```
-And neither it is with *ATRX*. Interestingly, this gene is enriched for Frameshift and Nonsense mutations.
+
+If we would annotate all the mutations on the TP53 lolliplot we wouldn't be able to read anything, so we need to subset the positions.
+
+```{r}
+top_label <-
+  maf@data %>%
+  filter(Hugo_Symbol == "TP53") %>%
+  group_by(HGVSp_Short) %>%
+  summarise(count = n()) %>%
+  top_n(5) %>%
+  pull(HGVSp_Short) %>%
+  str_extract("[0-9]+")
+
+lollipopPlot(maf, "TP53", labelPos = top_label, labPosAngle = 20)
+```
+
+Similarly to TP53, *ATRX* is mutated at different positions rather than in one hotspot. Interestingly, this gene is enriched for Frameshift and Nonsense mutations.
 
 ```{r}
 lollipopPlot(maf, "ATRX")
@@ -257,9 +306,9 @@ With the `recount3` data comes clinical information as well. For example, we can
 sample_sheet %>%
   select(starts_with("tcga.gdc_cases.demographic."))
 ```
-There's much more data in that dataframe - after all there are almost a thousand columns.
+There's much more data in that dataframe - after all there are almost a thousand columns. However that's only the data for samples in the expression matrix.
 
-We can also access addiitional data from `TCGAbiolinks`, for example we can see in what subtypes were the samples separated into. 
+We can also access additional data from `TCGAbiolinks`, for example we can see in what subtypes were the samples separated into. This data will cover more patients - including those which samples were whole exome sequenced, but have no expression data and so on.
 
 ```{r}
 tcga_subtype_data <-
@@ -271,38 +320,95 @@ tcga_subtype_data %>%
 
 The dataframe contains much more data, and the function prints out information about the publication the data comes from. 
 
+```{r}
+tcga_subtype_data
+```
+
+
+Now that we have information of a subtype (and other), we can add it to our heatmap.
+
+```{r}
+top_annotation_df <-
+  tcga_subtype_data %>%
+  select(patient, Histology, Original.Subtype, Transcriptome.Subtype) %>%
+  column_to_rownames("patient")
+
+# make sure we are taking only information about samples in RNA-seq expression
+top_annotation_df <-
+  top_annotation_df[colnames(normalized_counts),]
+
+# prepare colors, cause random ones are bad
+# I generate those pallets  https://colorbrewer2.org/
+histology_cols <- c(astrocytoma = "#d8b365",  
+                    oligodendroglioma ="#99d8c9", 
+                    oligoastrocytoma = "#2ca25f")
+
+original_cols <- c("IDHmut-non-codel" = "#fee8c8",
+                   "IDHwt" = "#fdbb84",
+                   "IDHmut-codel" = "#e34a33")
+
+transcriptome_cols <- c("CL" = "#7b3294", 
+                        "ME" = "#c2a5cf", 
+                        "NE" = "#a6dba0", 
+                        "PN" = "#008837")
+# create annotation
+ha <-
+  HeatmapAnnotation(df = top_annotation_df, 
+                    which = "column", 
+                    col = list("Histology" = histology_cols,
+                               "Original.Subtype" = original_cols,
+                               "Transcriptome.Subtype" = transcriptome_cols), 
+                    na_col = "#999999")
+
+Heatmap(as.matrix(samples_dist), 
+        show_row_names = FALSE, 
+        show_column_names = FALSE, 
+        col = viridis::mako(100), 
+        show_row_dend = FALSE, 
+        top_annotation = ha)
+```
+
+And let's see the transciptome heatmap with added annotation. Interestingly, even by selecting only top 1% we can see that different Transcriptome Subtypes are clustering together.
+
+```{r}
+ht <-
+  Heatmap(scale2(normalized_counts[row_var > quantile(row_var, 0.99),]),
+        show_row_names = FALSE, show_column_names = FALSE,
+        clustering_distance_rows = "pearson", name = "gene expression",
+        col = viridis::viridis(100), use_raster = TRUE, top_annotation = ha)
+
+ht
+```
+
+
 # What next?
 
 You can do much more with those data - firstly, you can draw inspiration from the vignettes of the packages. Secondly, you can see what is interesting to you, what you would want to know? Thirdly, this is already published data and you can always refer to the paper - maybe there are some figures you have an idea to improve?
 
 Few ideas from the top of my head:
 * improve the heatmap by adding the subtype, sex and other variable annotations. Add the mutation in various top genes as annotations at the bottom;
-* acces sthe suviaval data and see how they separate based on the subtype;
-* visualise point mutations on the protein (for example [here](https://michelanglo.sgc.ox.ac.uk/))
+* reduce dimensionality of expression data with PCA or tSNE and see if you see the subtypes specific from transcriptome data
+* access the survival data and see how they separate based on the subtype;
+* visualize point mutations on the protein (for example [here](https://michelanglo.sgc.ox.ac.uk/))
 
 For example, in order to add IDH1 annotation, we need to join the information from two dataframes (one that has unique column ids and one that has the information about mutation).
 
 ```{r}
-sample_sheet_with_patient_id <-
-  sample_sheet %>% 
-  mutate(patient_id = str_extract(tcga.tcga_barcode, 
-                                  "[^-]{4}-[^-]{2}-[^-]{4}")) %>%
-  select(sample_id, patient_id)
-
 idh1_mutation <-
   maf@data %>%
   mutate(patient_id = str_extract(Tumor_Sample_Barcode, 
                                   "[^-]{4}-[^-]{2}-[^-]{4}")) %>%
   select(Hugo_Symbol, patient_id) %>%
-  filter(Hugo_Symbol == "IDH1")
+  filter(Hugo_Symbol == "IDH1") %>%
+  column_to_rownames("patient_id")
 
 ha_bottom <-
-  sample_sheet_with_patient_id %>%
-  left_join(idh1_mutation) %>%
+  idh1_mutation[colnames(normalized_counts), , drop = FALSE] %>%
+  rownames_to_column("patient_id") %>%
   mutate(present = ifelse(is.na(Hugo_Symbol), FALSE, TRUE)) %>%
-  group_by(sample_id) %>%
+  group_by(patient_id) %>%
   summarise(IDH1 = any(present)) %>%
-  column_to_rownames("sample_id") %>%
+  column_to_rownames("patient_id") %>%
   HeatmapAnnotation(df = ., col = list("IDH1" = c(`TRUE` = "black", 
                                                   `FALSE` = "white")))
 ```
@@ -311,7 +417,7 @@ When we have the annotation, we can add it to the plot.
 
 ```{r}
 ht3 <-
-  Heatmap(scale2(normalized_counts[row_var > quantile(row_var, 0.995),]),
+  Heatmap(scale2(normalized_counts[row_var > quantile(row_var, 0.99),]),
         show_row_names = FALSE, show_column_names = FALSE,
         clustering_distance_rows = "pearson", name = "gene expression",
         col = viridis::viridis(100), 
@@ -320,6 +426,109 @@ ht3 <-
 ht3
 ```
 
+# Interactive plot
+
+With using just one package and one command, we can make an interactive plot.
+
+But before this, I want to translate the ensembl ids to hugo gene symbol to improve readability. 
+
+```{r}
+ensembl_ids <- 
+  rownames(normalized_counts) %>%
+  str_remove("\\.[0-9]*")
+
+mart <- biomaRt::useMart("ensembl", dataset = "hsapiens_gene_ensembl")
+ensembl_to_hgnc <-
+  biomaRt::getBM(attributes = c('ensembl_gene_id', 'hgnc_symbol'), 
+                 mart = mart) %>%
+  filter(ensembl_gene_id %in% ensembl_ids) %>%
+  group_by(ensembl_gene_id) %>%
+  summarise(hgnc_symbol = paste(unique(hgnc_symbol)[unique(hgnc_symbol) != ""],
+                                collapse = ",")) %>%
+  mutate(hgnc_symbol = ifelse(hgnc_symbol == "", 
+                              ensembl_gene_id,
+                              hgnc_symbol)) %>%
+  column_to_rownames("ensembl_gene_id") 
+
+rownames(normalized_counts) <-
+  ensembl_to_hgnc[ensembl_ids,]
+```
+
+Now that we fixed the gene names, let's look at the interactive heatmap using `InteractiveComplexHeatmap` package. Run below code in your notebook.
+
+```{r}
+# to create interactive heatmaps
+library(InteractiveComplexHeatmap)
+
+ht_interactive <-
+  Heatmap(scale2(normalized_counts[row_var > quantile(row_var, 0.99),]),
+        show_row_names = TRUE, show_column_names = FALSE,
+        clustering_distance_rows = "pearson", name = "gene expression",
+        col = viridis::viridis(100), 
+        top_annotation = ha, bottom_annotation = ha_bottom)
+
+htShiny(ht_interactive)
+```
+
+For more information and beautiful examples check out: [Documentation](https://jokergoo.github.io/InteractiveComplexHeatmap/) and [GitHub](https://github.com/jokergoo/InteractiveComplexHeatmap).
+
+## Joining expression and mutation
+
+```{r}
+# which genes are we intersted in?
+genes_of_interest <- c("IDH1", "TP53")
+
+# this will allow us to distinguish between no infomration about mutation
+# and no mutation
+patient_muts <-
+  maf@data %>%
+  mutate(patient_id = str_extract(Tumor_Sample_Barcode, 
+                                  "[^-]{4}-[^-]{2}-[^-]{4}")) %>%
+  pull(patient_id) %>%
+  unique()
+
+expression_vals <-
+  normalized_counts[genes_of_interest,] %>%
+  as.data.frame() %>%
+  rownames_to_column("Hugo_Symbol") %>%
+  pivot_longer(names_to = "patient_id", 
+              values_to = "norm_expression",
+              cols = -Hugo_Symbol)
+
+mutation_data <-
+  maf@data %>%
+  filter(Hugo_Symbol %in% genes_of_interest) %>%
+  mutate(patient_id = str_extract(Tumor_Sample_Barcode, 
+                                  "[^-]{4}-[^-]{2}-[^-]{4}")) %>%
+  dplyr::select(patient_id, Hugo_Symbol, VARIANT_CLASS)
+
+expr_mut_df <-
+  full_join(expression_vals, mutation_data) %>%
+  # introduce WT for samples with no mutation in the gene
+  mutate(VARIANT_CLASS = as.character(VARIANT_CLASS),
+         VARIANT_CLASS = ifelse(is.na(VARIANT_CLASS),
+                                         yes = ifelse(patient_id %in% patient_muts,
+                                                yes = "WT",
+                                                no = "NA"), 
+                                         no = VARIANT_CLASS),
+         VARIANT_CLASS = factor(VARIANT_CLASS, 
+                                levels = c("WT", 
+                                           "SNV",
+                                           "deletion", "insertion",
+                                           "NA")))
+
+expr_mut_df %>%
+  ggplot(aes(VARIANT_CLASS, norm_expression, color = VARIANT_CLASS,
+             shape = VARIANT_CLASS)) +
+  geom_jitter() +
+  geom_boxplot(color = "black", width = 0.3, 
+               alpha = 0.7, outlier.shape = NA) +
+  facet_wrap(~Hugo_Symbol) +
+  theme_classic() +
+  theme(legend.position = "none") +
+  labs(y = "vst normalized expression",
+       x = "Variant classification")
+```
 
 # Project
 
