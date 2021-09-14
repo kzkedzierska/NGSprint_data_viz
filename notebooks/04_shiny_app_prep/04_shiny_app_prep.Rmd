@@ -1,8 +1,13 @@
 ---
 title: "Preparing data for shiny app"
+subtitle: "NGSprint Data Visualization in Bioinformatics"
+author: "[Kasia Kedzierska](https://kasia.codes/)"
+date: "Created on 14 Sep, 2021 <br>Last compiled on `r format(Sys.time(), '%d %b, %Y')`"
 output:
   html_document:
     df_print: paged
+    theme: united
+    toc: yes
 ---
 
 # Setup
