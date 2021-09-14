@@ -214,7 +214,7 @@ Note2: This maf from `maftools::tcgaLoad` is generated based on the hg19 genome,
 
 ```{r maf, message=FALSE, warning=FALSE, error=FALSE, results='hide'}
 maf <-
-  GDCquery_Maf("LGG", pipelines = "mutect2") %>%
+  GDCquery_Maf("LGG", pipelines = "mutect2", directory = "../GDCdata") %>%
   read.maf(verbose = TRUE)
 
 # now that GDC works again, we don't need this

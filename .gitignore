@@ -2,14 +2,7 @@
 .Rhistory
 .RData
 .Ruserdata
-notebooks/00_plots_for_presentation/00_plots_for_presentation.html
-notebooks/01_refresher_on_tidyverse/01_refresher_on_tidyverse.html
-notebooks/01_refresher_on_tidyverse/01_refresher_on_tidyverse_files/
-notebooks/02_introduction/02_introduction.html
-notebooks/02_introduction/02_introduction_files/
-notebooks/03_TCGA_data/03_TCGA_data_files/
-notebooks/03_TCGA_data/03_TCGA_data_cache/
-notebooks/03_TCGA_data/03_TCGA_data.nb.html
-notebooks/04_shiny_app_prep.nb.html
-notebooks/04_shiny_app/*
+notebooks/*/*_files/
+notebooks/*/*_cache/
+notebooks/*/*.html
 notebooks/r_data/

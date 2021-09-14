@@ -1,0 +1,236 @@
+---
+title: "Preparing data for shiny app"
+output:
+  html_document:
+    df_print: paged
+---
+
+# Setup
+
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(cache = TRUE, dpi = 300)
+```
+
+```{r message = FALSE, warning = FALSE}
+# for unified and processed RNA-seq data
+library(recount3)
+# to normalize the RNA-seq data 
+library(DESeq2) 
+# to look at the data
+library(tidyverse)
+# to visualize the mutation data
+library(maftools)
+# for subtype data
+library(TCGAbiolinks)
+```
+
+In this notebook we prepare the data for the shiny app. We process the data and save it to RDS files. We copy the steps from `03_TCGA_data.Rmd` notebook.
+
+# Getting normalized count data
+
+As expplained in the previous notebook, we download the expression data.
+
+```{r message=FALSE, warning=FALSE}
+rse_gene <- 
+  create_rse(
+    subset(
+      available_projects(),
+      project == "LGG" & project_type == "data_sources"
+    )
+  )
+```
+
+Next, we transform the counts so we can normalize them.
+
+```{r}
+assay(rse_gene, "counts") <- 
+  transform_counts(rse_gene)
+```
+
+For normalization, we use `vst` function from `DESeq2` package. For more details, check previous notbeook.
+
+```{r}
+normalized_counts <- 
+  vst(assays(rse_gene)$counts)
+```
+
+We want to filter the data to keep one ssample of Primary umor per patient and to change the names of columns from smaple uuid to patient id. In order to do so, we need the sample sheet.
+
+```{r}
+sample_sheet <-
+  colData(rse_gene) %>%
+  data.frame() %>%
+  rownames_to_column("sample_id")
+```
+
+Now, we create the sample sheet with one sample per paient.
+
+```{r}
+sample_sheet_one <-
+  sample_sheet %>%
+  filter(tcga.cgc_sample_sample_type == "Primary Tumor") %>%
+  mutate(patient_id = str_extract(tcga.tcga_barcode, 
+                                "[^-]{4}-[^-]{2}-[^-]{4}")) %>%
+  group_by(patient_id) %>%
+  # this is quick, but dirty way to take just one repeat per patient
+  sample_n(1)
+```
+
+We subset the normalized counts such that they have one sample per patient. We also transform columnnames to patient ids.
+
+```{r}
+# select only the samples we want to keep
+normalized_counts <-
+  normalized_counts[ ,  sample_sheet_one$sample_id]
+
+# change rownames to nice patient ids
+colnames(normalized_counts) <- sample_sheet_one$patient_id
+```
+
+Next, we want to change unreadable Ensembl IDs to Hugo gene symbol. First we will remove the visioning from Ensembl IDs in our normalized_counts.
+
+```{r}
+ensembl_ids <- 
+  rownames(normalized_counts) %>%
+  str_remove("\\.[0-9]*")
+```
+
+Next, we connect to biomart in Ensembl and download data set that allows us to ranslate Ensembl IDs to gene names. We filter for genes contained in our dataset. In case we don't have a gene name (pseudo gene, long non-coding RNA or other) we keep the Ensembl ID.
+```{r}
+mart <- 
+  biomaRt::useMart("ensembl", dataset = "hsapiens_gene_ensembl")
+
+ensembl_to_hgnc <-
+  biomaRt::getBM(attributes = c('ensembl_gene_id', 'hgnc_symbol'), 
+                 mart = mart) %>%
+  filter(ensembl_gene_id %in% ensembl_ids) %>%
+  group_by(ensembl_gene_id) %>%
+  summarise(hgnc_symbol = paste(unique(hgnc_symbol)[unique(hgnc_symbol) != ""],
+                                collapse = ",")) %>%
+  mutate(hgnc_symbol = ifelse(hgnc_symbol == "", 
+                              ensembl_gene_id,
+                              hgnc_symbol)) %>%
+  column_to_rownames("ensembl_gene_id") 
+
+rownames(normalized_counts) <-
+  ensembl_to_hgnc[ensembl_ids,]
+```
+
+Let's look it up. Nice, more readable.
+
+```{r}
+normalized_counts[1:5, 1:5]
+```
+
+# Mutation data
+
+Next data type is mutation data - we need to load it in.
+
+```{r maf, message=FALSE, warning=FALSE, error=FALSE, results='hide'}
+maf <-
+  GDCquery_Maf("LGG", pipelines = "mutect2", directory = "../GDCdata") %>%
+  read.maf(verbose = TRUE)
+
+# now that GDC works again, we don't need this
+# 
+# tryCatch(maf <- tcgaLoad(study = "LGG"), 
+#          error = function(e) {
+#            print(paste(rep("#", 50), collapse = ""))
+#            print(paste0("# ERROR! Read the message below!", 
+#                         paste(rep(" ", 17), collapse = ""),
+#                         "#"))
+#            print(paste(rep("#", 50), collapse = ""))
+#            print(e)
+#            print(paste("If you're seeing this message you probably don't have",
+#                        "maftools package loaded, or have an older version.", 
+#                        "This function is available with v2.8.",
+#                        "Install the new version of maftools package with",
+#                        "`BiocManager::install('PoisonAlien/maftools')`", 
+#                        "and try again!"))
+#            })
+```
+
+
+# Checking the data 
+
+Firs, let's check if we have the necessary data to create last plot. We are replicating plots from `03_TCGA_Data`.
+
+```{r}
+# which genes are we intersted in?
+genes_of_interest <- c("IDH1", "TP53")
+
+# this will allow us to distinguish between no information about mutation
+# and no mutation
+patient_muts <-
+  maf@data %>%
+  mutate(patient_id = str_extract(Tumor_Sample_Barcode, 
+                                  "[^-]{4}-[^-]{2}-[^-]{4}")) %>%
+  pull(patient_id) %>%
+  unique()
+
+expression_vals <-
+  normalized_counts[genes_of_interest,] %>%
+  as.data.frame() %>%
+  rownames_to_column("Hugo_Symbol") %>%
+  pivot_longer(names_to = "patient_id", 
+              values_to = "norm_expression",
+              cols = -Hugo_Symbol)
+
+mutation_data <-
+  maf@data %>%
+  filter(Hugo_Symbol %in% genes_of_interest) %>%
+  mutate(patient_id = str_extract(Tumor_Sample_Barcode, 
+                                  "[^-]{4}-[^-]{2}-[^-]{4}")) %>%
+  dplyr::select(patient_id, Hugo_Symbol, VARIANT_CLASS)
+
+expr_mut_df <-
+  full_join(expression_vals, mutation_data) %>%
+  # introduce WT for samples with no mutation in the gene
+  mutate(VARIANT_CLASS = as.character(VARIANT_CLASS),
+         VARIANT_CLASS = ifelse(is.na(VARIANT_CLASS),
+                                         yes = ifelse(patient_id %in% patient_muts,
+                                                yes = "WT",
+                                                no = "NA"), 
+                                         no = VARIANT_CLASS),
+         VARIANT_CLASS = factor(VARIANT_CLASS, 
+                                levels = c("WT", 
+                                           "SNV",
+                                           "deletion", "insertion",
+                                           "NA")))
+
+expr_mut_df %>%
+  ggplot(aes(VARIANT_CLASS, norm_expression, color = VARIANT_CLASS,
+             shape = VARIANT_CLASS)) +
+  geom_jitter() +
+  geom_boxplot(color = "black", width = 0.3, 
+               alpha = 0.7, outlier.shape = NA) +
+  facet_wrap(~Hugo_Symbol) +
+  theme_classic() +
+  theme(legend.position = "none") +
+  labs(y = "vst normalized expression",
+       x = "Variant classification")
+```
+
+
+## Save the data
+
+Now that we see that the plot is successfully ploted, we will save the intermediate data sets.
+
+```{r}
+app_data_dir <- "../interactive_app/data"
+if (!dir.exists(app_data_dir)) {
+  dir.create(app_data_dir)
+}
+saveRDS(maf@data, file.path(app_data_dir, "maf_data_df.RDS"))
+saveRDS(normalized_counts, file.path(app_data_dir, "normalized_counts.RDS"))
+```
+
+Including the subtype data.
+
+```{r}
+tcga_subtype_data <-
+  TCGAquery_subtype(tumor = "lgg")
+
+saveRDS(tcga_subtype_data, file.path(app_data_dir, "tcga_subtype_data.RDS"))
+```
+
